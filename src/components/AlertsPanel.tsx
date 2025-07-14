@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AlertTriangle, CheckCircle, Clock, User, Car, Package } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,8 +83,29 @@ function getAlertColor(type: Alert['type']) {
 }
 
 export function AlertsPanel() {
-  const activeAlerts = mockAlerts.filter(alert => !alert.resolved);
+  const [alerts, setAlerts] = useState(mockAlerts);
+  const activeAlerts = alerts.filter(alert => !alert.resolved);
   const criticalAlerts = activeAlerts.filter(alert => alert.type === 'error');
+
+  const handleResolveAlert = (alertId: string) => {
+    setAlerts(prev => 
+      prev.map(alert => 
+        alert.id === alertId ? { ...alert, resolved: true } : alert
+      )
+    );
+  };
+
+  const handleInvestigateAlert = (alertId: string) => {
+    alert(`Opening investigation for alert ${alertId}...`);
+  };
+
+  const handleClearResolved = () => {
+    setAlerts(prev => prev.filter(alert => !alert.resolved));
+  };
+
+  const handleReviewAll = () => {
+    alert("Opening critical alerts review dashboard...");
+  };
 
   return (
     <div className="space-y-6">
@@ -97,7 +119,7 @@ export function AlertsPanel() {
             </Badge>
           )}
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={handleClearResolved}>
           Clear Resolved
         </Button>
       </div>
@@ -113,7 +135,7 @@ export function AlertsPanel() {
                 {criticalAlerts.length} error{criticalAlerts.length > 1 ? 's' : ''} blocking production
               </p>
             </div>
-            <Button variant="destructive" size="sm">
+            <Button variant="destructive" size="sm" onClick={handleReviewAll}>
               Review All
             </Button>
           </div>
@@ -122,7 +144,7 @@ export function AlertsPanel() {
 
       {/* Alerts List */}
       <div className="space-y-4">
-        {mockAlerts.map((alert) => {
+        {alerts.map((alert) => {
           const IconComponent = getAlertIcon(alert.type);
           
           return (
@@ -217,12 +239,20 @@ export function AlertsPanel() {
                   {!alert.resolved && (
                     <div className="flex gap-2">
                       {alert.type === 'error' && (
-                        <Button size="sm" variant="destructive">
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleInvestigateAlert(alert.id)}
+                        >
                           <AlertTriangle className="h-4 w-4 mr-2" />
                           Investigate
                         </Button>
                       )}
-                      <Button size="sm" variant="outline">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleResolveAlert(alert.id)}
+                      >
                         Mark Resolved
                       </Button>
                     </div>
