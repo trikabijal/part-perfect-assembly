@@ -20,7 +20,7 @@ interface PartData {
 }
 
 interface ScanResult {
-  status: 'match' | 'mismatch' | 'pending';
+  status: 'match' | 'mismatch' | 'pending' | 'barcode-failure';
   car?: CarData;
   part?: PartData;
   scannedPart?: {
@@ -121,27 +121,60 @@ export function MobileScanningApp() {
       const randomPart = mockParts[Math.floor(Math.random() * mockParts.length)];
       setPartInput(randomPart.partId);
       
-      // Simulate scanning the part and checking compatibility
-      const isMatch = randomPart.expectedModel === scanResult.car.model && 
-                     randomPart.expectedVariant === scanResult.car.variant &&
-                     randomPart.expectedColor === scanResult.car.color;
+      // Randomize outcome with 1/3 probability each
+      const outcome = Math.random();
       
-      // Sometimes simulate mismatch for demo
-      const finalMatch = Math.random() > 0.3 ? isMatch : false;
-      
-      const result: ScanResult = {
-        status: finalMatch ? 'match' : 'mismatch',
-        car: scanResult.car,
-        part: randomPart,
-        scannedPart: {
-          model: randomPart.expectedModel,
-          variant: finalMatch ? randomPart.expectedVariant : (randomPart.expectedVariant === "Style" ? "Ambition" : "Style"),
-          color: randomPart.expectedColor
-        }
-      };
-      
-      setScanResult(result);
-      playSound(finalMatch ? 'success' : 'error');
+      if (outcome < 0.33) {
+        // Barcode scanning failure
+        setScanResult({ 
+          status: 'barcode-failure', 
+          car: scanResult.car,
+          part: randomPart 
+        });
+        playSound('error');
+        
+        // Add to alerts
+        const alertEvent = new CustomEvent('addAlert', {
+          detail: {
+            id: Date.now(),
+            type: 'critical',
+            message: `Barcode scanning failed for part ${randomPart.partId}`,
+            station: 'Current Station',
+            timestamp: new Date().toLocaleTimeString()
+          }
+        });
+        window.dispatchEvent(alertEvent);
+        
+      } else if (outcome < 0.66) {
+        // Part mismatch
+        const result: ScanResult = {
+          status: 'mismatch',
+          car: scanResult.car,
+          part: randomPart,
+          scannedPart: {
+            model: randomPart.expectedModel,
+            variant: randomPart.expectedVariant === "Style" ? "Ambition" : "Style",
+            color: randomPart.expectedColor
+          }
+        };
+        setScanResult(result);
+        playSound('error');
+        
+      } else {
+        // Success match
+        const result: ScanResult = {
+          status: 'match',
+          car: scanResult.car,
+          part: randomPart,
+          scannedPart: {
+            model: randomPart.expectedModel,
+            variant: randomPart.expectedVariant,
+            color: randomPart.expectedColor
+          }
+        };
+        setScanResult(result);
+        playSound('success');
+      }
       
     } finally {
       setIsPartScanning(false);
@@ -277,7 +310,8 @@ export function MobileScanningApp() {
                   <h3 className={`text-xl font-bold ${
                     scanResult.status === 'match' ? 'text-success' : 'text-destructive'
                   }`}>
-                    {scanResult.status === 'match' ? 'PART VERIFIED' : 'MISMATCH DETECTED'}
+                    {scanResult.status === 'match' ? 'PART VERIFIED' : 
+                     scanResult.status === 'barcode-failure' ? 'BARCODE SCAN FAILED' : 'MISMATCH DETECTED'}
                   </h3>
                   <p className="text-muted-foreground">{scanResult.part.partName}</p>
                 </div>
@@ -288,6 +322,24 @@ export function MobileScanningApp() {
                 Reset
               </Button>
             </div>
+
+            {scanResult.status === 'barcode-failure' && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <h4 className="font-semibold text-destructive mb-2">Scanning Error:</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Unable to read barcode. Please check part label and try again.
+                </p>
+                
+                <div className="flex gap-2">
+                  <Button variant="destructive" size="sm">
+                    Retry Scan
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    Manual Entry
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {scanResult.status === 'mismatch' && (
               <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
