@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Scan, Car, Package, CheckCircle, AlertTriangle, Camera, RefreshCw } from "lucide-react";
+import { Scan, Car, Package, CheckCircle, AlertTriangle, Camera, RefreshCw, Keyboard } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface CarData {
   vin: string;
@@ -66,6 +67,8 @@ export function MobileScanningApp() {
   const [isPartScanning, setIsPartScanning] = useState(false);
   const [carInput, setCarInput] = useState("");
   const [partInput, setPartInput] = useState("");
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualPartInput, setManualPartInput] = useState("");
 
   const playSound = (type: 'success' | 'error') => {
     // Create audio context for sound alerts
@@ -181,9 +184,81 @@ export function MobileScanningApp() {
     }
   };
 
+  const handleManualEntry = () => {
+    if (!manualPartInput.trim()) return;
+    
+    const foundPart = mockParts.find(p => p.partId === manualPartInput.trim());
+    if (!foundPart) {
+      alert("Part not found in database");
+      return;
+    }
+    
+    setPartInput(manualPartInput);
+    
+    // Same randomization logic as scanning
+    const outcome = Math.random();
+    
+    if (outcome < 0.33) {
+      setScanResult({ 
+        status: 'barcode-failure', 
+        car: scanResult.car,
+        part: foundPart 
+      });
+      playSound('error');
+      
+      const alertEvent = new CustomEvent('addAlert', {
+        detail: {
+          id: Date.now(),
+          type: 'critical',
+          message: `Manual entry failed for part ${foundPart.partId}`,
+          station: 'Current Station',
+          timestamp: new Date().toLocaleTimeString()
+        }
+      });
+      window.dispatchEvent(alertEvent);
+      
+    } else if (outcome < 0.66) {
+      const result: ScanResult = {
+        status: 'mismatch',
+        car: scanResult.car,
+        part: foundPart,
+        scannedPart: {
+          model: foundPart.expectedModel,
+          variant: foundPart.expectedVariant === "Style" ? "Ambition" : "Style",
+          color: foundPart.expectedColor
+        }
+      };
+      setScanResult(result);
+      playSound('error');
+      
+    } else {
+      const result: ScanResult = {
+        status: 'match',
+        car: scanResult.car,
+        part: foundPart,
+        scannedPart: {
+          model: foundPart.expectedModel,
+          variant: foundPart.expectedVariant,
+          color: foundPart.expectedColor
+        }
+      };
+      setScanResult(result);
+      playSound('success');
+    }
+    
+    setShowManualEntry(false);
+    setManualPartInput("");
+  };
+
   const handleReset = () => {
     setScanResult({ status: 'pending' });
     setCarInput("");
+    setPartInput("");
+  };
+
+  const handleScanNextPart = () => {
+    // Reset for next part while keeping the car
+    setScanResult({ status: 'pending', car: scanResult.car });
     setPartInput("");
   };
 
@@ -331,12 +406,41 @@ export function MobileScanningApp() {
                 </p>
                 
                 <div className="flex gap-2">
-                  <Button variant="destructive" size="sm">
-                    Retry Scan
+                  <Button variant="destructive" size="sm" onClick={handlePartScan} disabled={isPartScanning}>
+                    {isPartScanning ? "Scanning..." : "Retry Scan"}
                   </Button>
-                  <Button variant="outline" size="sm">
-                    Manual Entry
-                  </Button>
+                  <Dialog open={showManualEntry} onOpenChange={setShowManualEntry}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Keyboard className="h-4 w-4 mr-2" />
+                        Manual Entry
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Manual Part Entry</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-medium">Part ID</label>
+                          <Input 
+                            placeholder="Enter part ID (e.g., DH-KUS-STY-WH-001)"
+                            value={manualPartInput}
+                            onChange={(e) => setManualPartInput(e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={handleManualEntry} className="flex-1">
+                            Submit Part
+                          </Button>
+                          <Button variant="outline" onClick={() => setShowManualEntry(false)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
             )}
@@ -370,9 +474,14 @@ export function MobileScanningApp() {
 
             {scanResult.status === 'match' && (
               <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
-                <p className="text-success font-medium text-lg">✓ Proceed with installation</p>
-                <Button className="mt-3" size="lg">
-                  Continue to Next Part
+                <p className="text-success font-medium text-lg mb-4">✓ Proceed with installation</p>
+                <Button 
+                  onClick={handleScanNextPart}
+                  className="w-full bg-success hover:bg-success/90 text-success-foreground" 
+                  size="lg"
+                >
+                  <Package className="h-5 w-5 mr-2" />
+                  Scan Next Part
                 </Button>
               </div>
             )}
