@@ -256,11 +256,6 @@ export function MobileScanningApp() {
     setPartInput("");
   };
 
-  const handleScanNextPart = () => {
-    // Reset for next part while keeping the car
-    setScanResult({ status: 'pending', car: scanResult.car });
-    setPartInput("");
-  };
 
   return (
     <div className="min-h-screen bg-background p-4 space-y-6">
@@ -474,19 +469,25 @@ export function MobileScanningApp() {
 
             {scanResult.status === 'match' && (
               <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
-                <p className="text-success font-medium text-lg mb-4">✓ Proceed with installation</p>
-                <Button 
-                  onClick={handleScanNextPart}
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-[1.02]" 
-                  size="lg"
-                >
-                  <Package className="h-5 w-5 mr-2" />
-                  Scan Next Part
-                </Button>
+                <p className="text-success font-medium text-lg">✓ Proceed with installation</p>
               </div>
             )}
           </div>
         </Card>
+      )}
+      
+      {/* Scan Next Car Button - Always visible when we have a result */}
+      {scanResult.status !== 'pending' && (
+        <div className="mt-6">
+          <Button 
+            onClick={handleReset}
+            className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-[1.02]" 
+            size="lg"
+          >
+            <Car className="h-5 w-5 mr-2" />
+            Scan Next Car
+          </Button>
+        </div>
       )}
     </div>
   );
