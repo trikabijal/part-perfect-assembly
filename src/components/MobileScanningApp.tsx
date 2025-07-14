@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Scan, Car, Package, CheckCircle, AlertTriangle, Camera, RefreshCw, Keyboard } from "lucide-react";
+import { Scan, Car, Package, CheckCircle, AlertTriangle, Camera, RefreshCw, Keyboard, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,8 @@ export function MobileScanningApp() {
   const [partInput, setPartInput] = useState("");
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualPartInput, setManualPartInput] = useState("");
+  const [showCameraView, setShowCameraView] = useState(false);
+  const [scanningType, setScanningType] = useState<'car' | 'part'>('car');
 
   const playSound = (type: 'success' | 'error') => {
     // Create audio context for sound alerts
@@ -96,10 +98,12 @@ export function MobileScanningApp() {
   };
 
   const handleCarScan = async () => {
+    setScanningType('car');
+    setShowCameraView(true);
     setIsCarScanning(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       const randomCar = mockCars[Math.floor(Math.random() * mockCars.length)];
       setCarInput(randomCar.vin);
@@ -107,6 +111,7 @@ export function MobileScanningApp() {
       
     } finally {
       setIsCarScanning(false);
+      setShowCameraView(false);
     }
   };
 
@@ -116,18 +121,50 @@ export function MobileScanningApp() {
       return;
     }
 
+    setScanningType('part');
+    setShowCameraView(true);
     setIsPartScanning(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       const randomPart = mockParts[Math.floor(Math.random() * mockParts.length)];
       setPartInput(randomPart.partId);
       
-      // Randomize outcome with 1/3 probability each
+      // Equal 1/3 probability for each outcome
       const outcome = Math.random();
       
-      if (outcome < 0.33) {
+      if (outcome < 0.333) {
+        // Success - part matches
+        const result: ScanResult = {
+          status: 'match',
+          car: scanResult.car,
+          part: randomPart,
+          scannedPart: {
+            model: randomPart.expectedModel,
+            variant: randomPart.expectedVariant,
+            color: randomPart.expectedColor
+          }
+        };
+        setScanResult(result);
+        playSound('success');
+        
+      } else if (outcome < 0.666) {
+        // Mismatch - part doesn't match car
+        const result: ScanResult = {
+          status: 'mismatch',
+          car: scanResult.car,
+          part: randomPart,
+          scannedPart: {
+            model: randomPart.expectedModel,
+            variant: randomPart.expectedVariant === "Style" ? "Ambition" : "Style",
+            color: randomPart.expectedColor
+          }
+        };
+        setScanResult(result);
+        playSound('error');
+        
+      } else {
         // Barcode scanning failure
         setScanResult({ 
           status: 'barcode-failure', 
@@ -147,40 +184,11 @@ export function MobileScanningApp() {
           }
         });
         window.dispatchEvent(alertEvent);
-        
-      } else if (outcome < 0.66) {
-        // Part mismatch
-        const result: ScanResult = {
-          status: 'mismatch',
-          car: scanResult.car,
-          part: randomPart,
-          scannedPart: {
-            model: randomPart.expectedModel,
-            variant: randomPart.expectedVariant === "Style" ? "Ambition" : "Style",
-            color: randomPart.expectedColor
-          }
-        };
-        setScanResult(result);
-        playSound('error');
-        
-      } else {
-        // Success match
-        const result: ScanResult = {
-          status: 'match',
-          car: scanResult.car,
-          part: randomPart,
-          scannedPart: {
-            model: randomPart.expectedModel,
-            variant: randomPart.expectedVariant,
-            color: randomPart.expectedColor
-          }
-        };
-        setScanResult(result);
-        playSound('success');
       }
       
     } finally {
       setIsPartScanning(false);
+      setShowCameraView(false);
     }
   };
 
@@ -487,6 +495,66 @@ export function MobileScanningApp() {
             <Car className="h-5 w-5 mr-2" />
             Scan Next Car
           </Button>
+        </div>
+      )}
+      
+      {/* Camera Scanning View */}
+      {showCameraView && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+          <div className="relative w-full max-w-sm mx-4">
+            {/* Camera Frame */}
+            <div className="bg-black rounded-lg p-4 border-2 border-white/20">
+              <div className="relative aspect-square bg-gray-900 rounded-lg overflow-hidden">
+                {/* Simulated camera feed */}
+                <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900">
+                  <div className="absolute inset-0 opacity-20">
+                    <div className="animate-pulse bg-white/10 w-full h-1/3 mt-8"></div>
+                    <div className="animate-pulse bg-white/5 w-2/3 h-1/4 mt-4 ml-8"></div>
+                  </div>
+                </div>
+                
+                {/* Scanning Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="border-2 border-yellow-400 w-48 h-32 relative">
+                    <div className="absolute inset-x-0 top-0 h-0.5 bg-red-500 animate-pulse"></div>
+                    <div className="absolute inset-x-0 bottom-0 h-0.5 bg-red-500 animate-pulse"></div>
+                    <div className="absolute inset-y-0 left-0 w-0.5 bg-red-500 animate-pulse"></div>
+                    <div className="absolute inset-y-0 right-0 w-0.5 bg-red-500 animate-pulse"></div>
+                    
+                    {/* Scanning line */}
+                    <div className="absolute inset-0 overflow-hidden">
+                      <div className="w-full h-0.5 bg-red-500 animate-[scan_1s_ease-in-out_infinite] opacity-80"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Camera Controls */}
+              <div className="mt-4 text-center">
+                <p className="text-white text-sm mb-2">
+                  {scanningType === 'car' ? 'Position car VIN in frame' : 'Position part barcode in frame'}
+                </p>
+                <div className="flex justify-center">
+                  {(isCarScanning || isPartScanning) ? (
+                    <div className="flex items-center text-yellow-400">
+                      <div className="animate-spin w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full mr-2"></div>
+                      Scanning...
+                    </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowCameraView(false)}
+                      className="text-white border-white/20 hover:bg-white/10"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Cancel
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
