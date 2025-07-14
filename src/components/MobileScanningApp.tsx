@@ -477,7 +477,7 @@ export function MobileScanningApp() {
                 <p className="text-success font-medium text-lg mb-4">✓ Proceed with installation</p>
                 <Button 
                   onClick={handleScanNextPart}
-                  className="w-full bg-success hover:bg-success/90 text-success-foreground" 
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-[1.02]" 
                   size="lg"
                 >
                   <Package className="h-5 w-5 mr-2" />
