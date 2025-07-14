@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Scan, Package, CheckCircle, AlertTriangle, Camera, BarChart3 } from "lucide-react";
+import { Scan, Package, CheckCircle, AlertTriangle, Camera, BarChart3, Car, Smartphone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,27 +60,108 @@ const mockVerifications: PartVerificationData[] = [
 export function PartVerification() {
   const [scanInput, setScanInput] = useState("");
   const [isScanning, setIsScanning] = useState(false);
+  const [currentCar, setCurrentCar] = useState({
+    vin: "SKU23WH001234",
+    model: "Kushaq",
+    variant: "Style",
+    color: "Candy White"
+  });
+  const [verifications, setVerifications] = useState(mockVerifications);
 
-  const handleScan = () => {
+  const handleScan = async () => {
     setIsScanning(true);
-    // Simulate scanning process
-    setTimeout(() => {
+    
+    try {
+      // Simulate camera scanning with better mobile experience
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        console.log("Camera access available - would open camera scanner");
+      }
+      
+      // Simulate scanning process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Generate random part ID for demo
+      const partIds = ["DH-KUS-STY-WH-001", "GS-SLA-AMB-SL-002", "OR-KOD-LK-BL-003", "CC-KUS-STY-WH-004"];
+      const randomId = partIds[Math.floor(Math.random() * partIds.length)];
+      setScanInput(randomId);
+      
+      // Add new verification to the list
+      const newVerification = {
+        partId: randomId,
+        partName: "Scanned Part",
+        expectedModel: currentCar.model,
+        expectedVariant: currentCar.variant,
+        expectedColor: currentCar.color,
+        scannedModel: currentCar.model,
+        scannedVariant: Math.random() > 0.7 ? "Ambition" : currentCar.variant, // Simulate occasional mismatch
+        scannedColor: currentCar.color,
+        status: Math.random() > 0.7 ? 'mismatch' : 'match' as 'match' | 'mismatch',
+        timestamp: new Date().toLocaleTimeString()
+      };
+      
+      setVerifications(prev => [newVerification, ...prev.slice(0, 4)]);
+      
+    } catch (error) {
+      console.error("Scanning error:", error);
+    } finally {
       setIsScanning(false);
-      setScanInput("DH-KUS-STY-WH-001");
-    }, 2000);
+    }
+  };
+
+  const handleCarScan = () => {
+    // Simulate car scanning
+    const cars = [
+      { vin: "SKU23WH001234", model: "Kushaq", variant: "Style", color: "Candy White" },
+      { vin: "SLA23SL001235", model: "Slavia", variant: "Ambition", color: "Brilliant Silver" },
+      { vin: "KOD23BL001236", model: "Kodiaq", variant: "L&K", color: "Lava Blue" }
+    ];
+    const randomCar = cars[Math.floor(Math.random() * cars.length)];
+    setCurrentCar(randomCar);
+  };
+
+  const handleViewReports = () => {
+    alert("Opening reports dashboard...");
+  };
+
+  const handleBlockInstallation = (partId: string) => {
+    alert(`Installation blocked for part ${partId}. Supervisor notified.`);
+    setVerifications(prev => 
+      prev.map(v => v.partId === partId ? {...v, status: 'pending' as const} : v)
+    );
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-foreground">Part Verification</h2>
-        <Button variant="outline" size="sm">
+        <h2 className="text-xl font-semibold text-foreground">Mobile Scanning System</h2>
+        <Button variant="outline" size="sm" onClick={handleViewReports}>
           <BarChart3 className="h-4 w-4 mr-2" />
           View Reports
         </Button>
       </div>
 
-      {/* Scanning Interface */}
+      {/* Current Car Info */}
+      <Card className="p-4 bg-primary/5 border-primary/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Car className="h-5 w-5 text-primary" />
+            <div>
+              <h3 className="font-semibold text-foreground">Current Vehicle</h3>
+              <p className="text-sm text-muted-foreground font-mono">{currentCar.vin}</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="font-medium text-foreground">{currentCar.model} {currentCar.variant}</p>
+            <p className="text-sm text-muted-foreground">{currentCar.color}</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleCarScan}>
+            <Scan className="h-4 w-4 mr-2" />
+            Scan Car
+          </Button>
+        </div>
+      </Card>
+
+      {/* Mobile Scanning Interface */}
       <Card className="p-6 shadow-industrial border">
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-4">
@@ -129,7 +210,7 @@ export function PartVerification() {
       <div className="space-y-4">
         <h3 className="font-semibold text-foreground">Recent Verifications</h3>
         
-        {mockVerifications.map((verification, index) => (
+        {verifications.map((verification, index) => (
           <Card key={index} className={`p-6 border ${
             verification.status === 'match' 
               ? 'border-success/20 bg-success/5' 
@@ -215,7 +296,12 @@ export function PartVerification() {
                     <div className="text-center">
                       <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-2 animate-status-blink" />
                       <p className="text-sm font-medium text-destructive">Mismatch</p>
-                      <Button size="sm" variant="destructive" className="mt-2">
+                      <Button 
+                        size="sm" 
+                        variant="destructive" 
+                        className="mt-2"
+                        onClick={() => handleBlockInstallation(verification.partId)}
+                      >
                         Block Installation
                       </Button>
                     </div>
